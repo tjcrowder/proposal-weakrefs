@@ -340,3 +340,32 @@ Here are some things to avoid with cleanup callbacks.
 ### Using Cleanup Callbacks to Release External Resources
 
 Don't rely on cleanup callbacks to release external resources. For example, consider the `FileStream` API in [the examples](examples.md#locating-and-responding-to-resource-leaks). The API has an explicit `close` method that developers are expected to call in the normal course of using the API. It does use cleanup callbacks, but it does so primarily to aid developers in using the API correctly by notifying them that they've failed to call `close`. While it could *also* release the file handles or other OS resources from the cleanup callback, that's not the cleanup callback's primary purpose. Its primary purpose is to help developers use the API correctly.
+
+<!-- for scrolling to links near the end -->
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
