@@ -28,7 +28,7 @@ The WeakRefs proposal adds two APIs to the standard JavaScript library:
     * [Use Cases for Cleanup Callbacks](#use-cases-for-cleanup-callbacks)
         * [Cleanup in Caches of Large or Expensive-to-Retrieve Objects](#cleanup-in-caches-of-large-or-expensive-to-retrieve-objects)
         * [Exposing Web Assembly Memory to JavaScript](#exposing-web-assembly-memory-to-javascript)
-        * [[Cleaning Up Cross-Process Resources](#cleaning-up-cross-process-resources)
+        * [Cleaning Up Cross-Process Resources](#cleaning-up-cross-process-resources)
     * [Patterns to Avoid With Cleanup Callbacks](#patterns-to-avod-with-cleanup-callbacks)
         * [Using Cleanup Callbacks to Release External Resources](#using-cleanup-callbacks-to-release-external-resources)
         * [Scanning for WeakRefs Whose Targets Have Been Reclaimed](#scanning-for-weakrefs-whose-targets-have-been-reclaimed)
@@ -97,7 +97,7 @@ Here are some use cases for WeakRefs.
 
 ### Caches of Large or Expensive-to-Retrieve Objects
 
-TBD
+**TBD**
 
 ## WeakRef API
 
@@ -214,15 +214,15 @@ Here are some use cases for cleanup callbacks.
 
 ### Cleanup in Caches of Large or Expensive-to-Retrieve Objects
 
-TBD: Point to the WeakRef use case and explain about cleaning up.
+**TBD**: Point to the WeakRef use case and explain about cleaning up.
 
 ### Exposing Web Assembly Memory to JavaScript
 
-TBD, mostly copying the README.md.
+**TBD**: Mostly copying the README.md.
 
 ### Cleaning Up Cross-Process Resources
 
-TBD
+**TBD**
 
 ## Patterns to Avoid With Cleanup Callbacks
 
