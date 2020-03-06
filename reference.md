@@ -1,46 +1,35 @@
 # Introduction
 
-The WeakRefs proposal adds two APIs to the standard JavaScript library:
+The WeakRefs proposal adds WeakRefs and FinalizationRegistries to the standard library.
 
-* `WeakRef` - WeakRef objects, which can hold a weak reference to an object.
-* `FinalizationRegistry` - Finalization registries, which can be used to request a callback when an object is reclaimed (garbage collected).
+* [WeakRef](#weakref) - weak references
+* [FinalizationRegistry](#finalizationregistry) - registries providing cleanup callbacks
 
-----
-
-**NOTE:** Please read [the explainer](./README.md) for several words of caution regarding weak references and cleanup callbacks. Their correct use takes careful thought, and they are best avoided if possible. It's also important to avoid relying on any specific behaviors not guaranteed by the specification. When, how, and whether garbage collection occurs is down to the implementation of any given JavaScript engine. Any behavior you observe in one engine may be different in another engine, in another version of the same engine, or even in a slightly different situation with the same version of the same engine. Garbage collection is a hard problem that JavaScript engine implementers are constantly refining and improving their solutions to.
+This page provides developer reference information, use cases, and best practices for them.
 
 ----
 
-# TOC
+# Warning - Avoid Where Possible
 
-* [`WeakRef`](#weakref)
-    * [WeakRef Overview](#weakref-overview)
-    * [State Guarantee](#state-guarantee)
-    * [Other Guarantees](#other-guarantees)
-    * [Use Cases for WeakRefs](#use-cases-for-weakrefs)
-        * [Caches of Large or Expensive-to-Retrieve Objects](#caches-of-large-or-expensive-to-retrieve-objects)
-    * [WeakRef API](#weakref-api)
-        * [The `WeakRef` Constructor](#the-weakref-constructor)
-        * [`WeakRef.prototype.deref`](#weakrefprototypederef)
-* [`FinalizationRegistry`](#finalizationregistry)
-    * [FinalizationRegistry Overview](#finalizationregistry-overview)
-    * [Cleanup Callback Guarantees](#cleanup-callback-guarantees)
-    * [Use Cases for Cleanup Callbacks](#use-cases-for-cleanup-callbacks)
-        * [Cleanup in Caches of Large or Expensive-to-Retrieve Objects](#cleanup-in-caches-of-large-or-expensive-to-retrieve-objects)
-        * [Exposing Web Assembly Memory to JavaScript](#exposing-web-assembly-memory-to-javascript)
-        * [Cleaning Up Cross-Process Resources](#cleaning-up-cross-process-resources)
-    * [Patterns to Avoid With Cleanup Callbacks](#patterns-to-avod-with-cleanup-callbacks)
-        * [Using Cleanup Callbacks to Release External Resources](#using-cleanup-callbacks-to-release-external-resources)
-        * [Scanning for WeakRefs Whose Targets Have Been Reclaimed](#scanning-for-weakrefs-whose-targets-have-been-reclaimed)
-    * [FinalizationRegistry API](#finalizationregistry-api)
-        * [The `FinalizationRegistry` Constructor](#the-finalizationregistry-constructor)
-        * [`FinalizationRegistry.prototype.register`](#finalizationregistryprototyperegister)
-        * [`FinalizationRegistry.prototype.unregister`](#finalizationregistryprototypeunregister)
-        * [`FinalizationRegistry.prototype.cleanupSome`](#finalizationregistryprototypecleanupsome)
+Please read [the explainer](./README.md) for several words of caution regarding weak references and cleanup callbacks. Their correct use takes careful thought, and they are best avoided if possible. It's also important to avoid relying on any specific behaviors not guaranteed by the specification. When, how, and whether garbage collection occurs is down to the implementation of any given JavaScript engine. Any behavior you observe in one engine may be different in another engine, in another version of the same engine, or even in a slightly different situation with the same version of the same engine. Garbage collection is a hard problem that JavaScript engine implementers are constantly refining and improving their solutions to.
+
+----
 
 # `WeakRef`
 
 A WeakRef instance contains a weak reference to an object, which is called its *target* or *referent*. When there are no strong (normal) references to an object, only weak ones, that object can be *reclaimed* (garbage collected). If it is, you will no longer have access to it through the WeakRef instance.
+
+**WeakRef Contents:**
+
+* [WeakRef Overview](#weakref-overview)
+* [State Guarantee](#state-guarantee)
+* [Other Guarantees](#other-guarantees)
+* [WeakRef API](#weakref-api)
+    * [The `WeakRef` Constructor](#the-weakref-constructor)
+    * [`WeakRef.prototype.deref`](#weakrefprototypederef)
+* [Use Cases for WeakRefs](#use-cases-for-weakrefs)
+    * [Caches of Large or Expensive-to-Retrieve Objects](#caches-of-large-or-expensive-to-retrieve-objects)
+* [Patterns to Avoid With WeakRefs](#patterns-to-avoid-with-weakrefs)
 
 ## WeakRef Overview
 
@@ -91,14 +80,6 @@ That's also arguably not best practice, but is guaranteed.
 
 Conforming JavaScript engines are not required to do garbage collection at all (for instance, some implementations for embedded systems may not). But if an engine does garbage collect the target of a WeakRef, the next call to `deref` on that WeakRef is guaranteed to return `undefined` as opposed to some kind of error or returning an invalid object.
 
-## Use Cases for WeakRefs
-
-Here are some use cases for WeakRefs.
-
-### Caches of Large or Expensive-to-Retrieve Objects
-
-**TBD**
-
 ## WeakRef API
 
 ### The `WeakRef` Constructor
@@ -147,6 +128,24 @@ See the [*State Guarantee*](#state-guarantee) section for guarantees around the 
 
 *(none)*
 
+## Use Cases for WeakRefs
+
+Here are some use cases for WeakRefs.
+
+### Caches of Large or Expensive-to-Retrieve Objects
+
+**TBD**
+
+## Patterns to Avoid With WeakRefs
+
+### Scanning for WeakRefs Whose Targets Have Been Reclaimed
+
+Since cleanup callbacks may never be called, it would be understandable for a developer to think:
+
+> Ah! So if I have a bunch of WeakRef instances, I should have some kind of proactive cleanup I perform, scanning through them looking for `deref` returning `undefined`, so that when their targets have been reclaimed, I release those WeakRef instances and any other bookkeeping information I have for them to get that memory back.
+
+**That isn't recommended.** It adds complication and runtime cost to the code. It's likely that an engine that performs garbage collection will, eventually, call your cleanup callbacks, or that you don't need it to (process shutdown, etc.). It's not guaranteed, but the cost of some wasted WeakRef instances is generally not worth the complexity of performing this kind of scan.
+
 # `FinalizationRegistry`
 
 A finalization registry provides a means of requesting a *cleanup callback* (sometimes called a *finalizer*) at some point after an object registered with the registry has been *reclaimed* (garbage collected).
@@ -154,6 +153,22 @@ A finalization registry provides a means of requesting a *cleanup callback* (som
 **NOTE:** The form of this API is under review, see [issue #187](https://github.com/tc39/proposal-weakrefs/pull/187).
 
 **NOTE:** Cleanup callbacks should not be used for essential program logic. See the [*Cleanup Callback Guarantees*](#cleanup-callback-guarantees) section for details.
+
+**FinalizationRegistry Contents**:
+
+* [FinalizationRegistry Overview](#finalizationregistry-overview)
+* [Cleanup Callback Guarantees](#cleanup-callback-guarantees)
+* [FinalizationRegistry API](#finalizationregistry-api)
+    * [The `FinalizationRegistry` Constructor](#the-finalizationregistry-constructor)
+    * [`FinalizationRegistry.prototype.register`](#finalizationregistryprototyperegister)
+    * [`FinalizationRegistry.prototype.unregister`](#finalizationregistryprototypeunregister)
+    * [`FinalizationRegistry.prototype.cleanupSome`](#finalizationregistryprototypecleanupsome)
+* [Use Cases for Cleanup Callbacks](#use-cases-for-cleanup-callbacks)
+    * [Cleanup in Caches of Large or Expensive-to-Retrieve Objects](#cleanup-in-caches-of-large-or-expensive-to-retrieve-objects)
+    * [Exposing Web Assembly Memory to JavaScript](#exposing-web-assembly-memory-to-javascript)
+    * [Cleaning Up Cross-Process Resources](#cleaning-up-cross-process-resources)
+* [Patterns to Avoid With Cleanup Callbacks](#patterns-to-avoid-with-cleanup-callbacks)
+    * [Using Cleanup Callbacks to Release External Resources](#using-cleanup-callbacks-to-release-external-resources)
 
 ## FinalizationRegistry Overview
 
@@ -207,38 +222,6 @@ There are also situations where even implementations that normally call cleanup 
 
 * When the JavaScript realm the objects existed in is being destroyed entirely (for instance, closing a tab in a browser).
 * When the `FinalizationRegistry` instance itself is no longer reachable by JavaScript code.
-
-## Use Cases for Cleanup Callbacks
-
-Here are some use cases for cleanup callbacks.
-
-### Cleanup in Caches of Large or Expensive-to-Retrieve Objects
-
-**TBD**: Point to the WeakRef use case and explain about cleaning up.
-
-### Exposing Web Assembly Memory to JavaScript
-
-**TBD**: Mostly copying the README.md.
-
-### Cleaning Up Cross-Process Resources
-
-**TBD**
-
-## Patterns to Avoid With Cleanup Callbacks
-
-Here are some things to avoid with cleanup callbacks.
-
-### Using Cleanup Callbacks to Release External Resources
-
-Don't rely on cleanup callbacks to release external resources. For example, consider the `FileStream` API in [the examples](examples.md#locating-and-responding-to-resource-leaks). The API has an explicit `close` method that developers are expected to call in the normal course of using the API. It does use cleanup callbacks, but it does so primarily to aid developers in using the API correctly by notifying them that they've failed to call `close`. While it could *also* release the file handles or other OS resources from the cleanup callback, that's not the cleanup callback's primary purpose. Its primary purpose is to help developers use the API correctly.
-
-### Scanning for WeakRefs Whose Targets Have Been Reclaimed
-
-Since cleanup callbacks may never be called, it would be understandable for a developer to think:
-
-> Ah! So if I have a bunch of WeakRef instances, I should have some kind of proactive cleanup I perform, scanning through them looking for `deref` returning `undefined`, so that when their targets have been reclaimed, I release those WeakRef instances and any other bookkeeping information I have for them to get that memory back.
-
-**That isn't recommended.** It adds complication and runtime cost to the code. It's likely that an engine that performs garbage collection will, eventually, call your cleanup callbacks, or that you don't need it to (process shutdown, etc.). It's not guaranteed, but the cost of some wasted WeakRef instances is generally not worth the complexity of performing this kind of scan.
 
 ## FinalizationRegistry API
 
@@ -333,3 +316,27 @@ registry.cleanupSome([callback])
 **Errors**
 
 `TypeError` if `callback` isn't `undefined` and isn't callable.
+
+## Use Cases for Cleanup Callbacks
+
+Here are some use cases for cleanup callbacks.
+
+### Cleanup in Caches of Large or Expensive-to-Retrieve Objects
+
+**TBD**: Point to the WeakRef use case and explain about cleaning up.
+
+### Exposing Web Assembly Memory to JavaScript
+
+**TBD**: Mostly copying the README.md.
+
+### Cleaning Up Cross-Process Resources
+
+**TBD**
+
+## Patterns to Avoid With Cleanup Callbacks
+
+Here are some things to avoid with cleanup callbacks.
+
+### Using Cleanup Callbacks to Release External Resources
+
+Don't rely on cleanup callbacks to release external resources. For example, consider the `FileStream` API in [the examples](examples.md#locating-and-responding-to-resource-leaks). The API has an explicit `close` method that developers are expected to call in the normal course of using the API. It does use cleanup callbacks, but it does so primarily to aid developers in using the API correctly by notifying them that they've failed to call `close`. While it could *also* release the file handles or other OS resources from the cleanup callback, that's not the cleanup callback's primary purpose. Its primary purpose is to help developers use the API correctly.
