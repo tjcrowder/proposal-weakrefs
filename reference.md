@@ -30,6 +30,7 @@ A WeakRef instance contains a weak reference to an object, which is called its *
 * [Use Cases for WeakRefs](#use-cases-for-weakrefs)
     * [Caches of Large or Expensive-to-Retrieve Objects](#caches-of-large-or-expensive-to-retrieve-objects)
 * [Patterns to Avoid With WeakRefs](#patterns-to-avoid-with-weakrefs)
+    * [Scanning for WeakRefs Whose Targets Have Been Reclaimed](#scanning-for-weakrefs-whose-targets-have-been-reclaimed)
 
 ## WeakRef Overview
 
