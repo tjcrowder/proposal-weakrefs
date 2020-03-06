@@ -21,7 +21,7 @@ The WeakRefs proposal adds two APIs to the standard JavaScript library:
         * [Caches of Large or Expensive-to-Retrieve Objects](#caches-of-large-or-expensive-to-retrieve-objects)
     * [WeakRef API](#weakref-api)
         * [The `WeakRef` Constructor](#the-weakref-constructor)
-        * [`WeakRef.prototype.deref`](#weakref-prototype-deref)
+        * [`WeakRef.prototype.deref`](#weakrefprototypederef)
 * [`FinalizationRegistry`](#finalizationregistry)
     * [FinalizationRegistry Overview](#finalizationregistry-overview)
     * [Cleanup Callback Guarantees](#cleanup-callback-guarantees)
@@ -34,9 +34,9 @@ The WeakRefs proposal adds two APIs to the standard JavaScript library:
         * [Scanning for WeakRefs Whose Targets Have Been Reclaimed](#scanning-for-weakrefs-whose-targets-have-been-reclaimed)
     * [FinalizationRegistry API](#finalizationregistry-api)
         * [The `FinalizationRegistry` Constructor](#the-finalizationregistry-constructor)
-        * [`FinalizationRegistry.prototype.register`](#finalizationregistry-prototype-register)
-        * [`FinalizationRegistry.prototype.unregister`](#finalizationregistry-prototype-unregister)
-        * [`FinalizationRegistry.prototype.cleanupSome`](#finalizationregistry-prototype-cleanupsome)
+        * [`FinalizationRegistry.prototype.register`](#finalizationregistryprototyperegister)
+        * [`FinalizationRegistry.prototype.unregister`](#finalizationregistryprototypeunregister)
+        * [`FinalizationRegistry.prototype.cleanupSome`](#finalizationregistryprototypecleanupsome)
 
 # `WeakRef`
 
