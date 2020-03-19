@@ -5,13 +5,13 @@ The WeakRefs proposal adds WeakRefs and FinalizationRegistries to the standard l
 * [WeakRef](#weakref) - weak references
 * [FinalizationRegistry](#finalizationregistry) - registries providing cleanup callbacks
 
-This page provides developer reference information, use cases, and best practices for them.
+This page provides developer reference information for them. You can find use cases, patterns, and anti-patterns in [`use-cases.md`](use-cases.md).
 
 ----
 
 # Warning - Avoid Where Possible
 
-Please read [the explainer](./README.md) for several words of caution regarding weak references and cleanup callbacks. Their correct use takes careful thought, and they are best avoided if possible. It's also important to avoid relying on any specific behaviors not guaranteed by the specification. When, how, and whether garbage collection occurs is down to the implementation of any given JavaScript engine. Any behavior you observe in one engine may be different in another engine, in another version of the same engine, or even in a slightly different situation with the same version of the same engine. Garbage collection is a hard problem that JavaScript engine implementers are constantly refining and improving their solutions to.
+Please read [the WeakRef proposal's explainer](./README.md) for several words of caution regarding weak references and cleanup callbacks. Their correct use takes careful thought, and they are best avoided if possible. It's also important to avoid relying on any specific behaviors not guaranteed by the specification. When, how, and whether garbage collection occurs is down to the implementation of any given JavaScript engine. Any behavior you observe in one engine may be different in another engine, in another version of the same engine, or even in a slightly different situation with the same version of the same engine. Garbage collection is a hard problem that JavaScript engine implementers are constantly refining and improving their solutions to.
 
 ----
 
@@ -22,15 +22,10 @@ A WeakRef instance contains a weak reference to an object, which is called its *
 **WeakRef Contents:**
 
 * [Overview](#weakref-overview)
-* [State Guarantee](#state-guarantee)
-* [Other Guarantees](#other-guarantees)
 * [WeakRef API](#weakref-api)
     * [The `WeakRef` Constructor](#the-weakref-constructor)
     * [`WeakRef.prototype.deref`](#weakrefprototypederef)
-* [Use Cases for WeakRefs](#use-cases-for-weakrefs)
-    * [Caches of Large or Expensive-to-Retrieve Objects](#caches-of-large-or-expensive-to-retrieve-objects)
-* [Patterns to Avoid With WeakRefs](#patterns-to-avoid-with-weakrefs)
-    * [Scanning for WeakRefs Whose Targets Have Been Reclaimed](#scanning-for-weakrefs-whose-targets-have-been-reclaimed)
+* [Notes](#notes-on-weakrefs)
 
 ## WeakRef Overview
 
@@ -40,9 +35,7 @@ To create a WeakRef, you use the `WeakRef` constructor, passing in the target ob
 let ref = new WeakRef(someObject);
 ```
 
-You generally release your strong reference (`someObject`) at some point while keeping the WeakRef instance (`ref`).
-
-To get the object from a WeakRef instance, use its `deref` method:
+Then at some point you stop using `someObject` (it goes out of scope, etc.) while keeping the WeakRef instance (`ref`). At that point, to get the object from a WeakRef instance, use its `deref` method:
 
 ```js
 let obj = ref.deref();
@@ -52,34 +45,6 @@ if (obj) {
 ```
 
 `deref` returns the object, or `undefined` if the object is no longer available.
-
-## State Guarantee
-
-A WeakRef instance's state will not observably change during an active JavaScript [job](https://tc39.es/ecma262/#job) (including any promise reaction jobs that run at the end of a script job). That means if you create a WeakRef instance and call `deref` within the same job, you are guaranteed to receive a reference to the object. Also, if you call `deref` on a WeakRef and get an object, a second call to `deref` on that same WeakRef during the same job will also return that same object (not `undefined`). The state of a WeakRef can only be observed to change between one job and another (between "turns" of the event loop).
-
-For example, this is guaranteed to work (though is arguably not best practice):
-
-```js
-let ref = new WeakRef({example: "value"});
-console.log(ref.deref().example); // "value"
-```
-
-The target object will not be reclaimed between the creation of the WeakRef and the call to `deref`.
-
-Similarly, while again arguably not best practice, this is guaranteed to work:
-
-```js
-if (ref.deref()) {
-    const { someProp } = ref.deref();
-    // ...
-}
-```
-
-The target object will not be reclaimed after the first call to `deref` and before the second call to `deref`, so the second call above will never return `undefined`.
-
-## Other Guarantees
-
-Conforming JavaScript engines are not required to do garbage collection at all (for instance, some implementations for embedded systems may not). But if an engine does garbage collect the target of a WeakRef, the next call to `deref` on that WeakRef is guaranteed to return `undefined` as opposed to some kind of error or returning an invalid object.
 
 ## WeakRef API
 
@@ -99,13 +64,9 @@ ref = new WeakRef(target)
 
 * The WeakRef instance.
 
-**Errors**
-
-* `TypeError` if `target` isn't an object.
-
 **Notes**
 
-* `WeakRef` throws if called as a function rather than as a constructor.
+* `WeakRef` is a constructor function, so it throws if called as a function rather than as a constructor.
 * `WeakRef` is designed to be subclassed, and so can appear in the `extends` of a `class` definition and similar.
 
 ### `WeakRef.prototype.deref`
@@ -115,8 +76,6 @@ The `deref` method returns the WeakRef instance's target object, or `undefined` 
 ```js
 targetOrUndefined = weakRef.deref();
 ```
-
-See the [*State Guarantee*](#state-guarantee) section for guarantees around the stability of its return value.
 
 **Parameters**
 
@@ -130,47 +89,33 @@ See the [*State Guarantee*](#state-guarantee) section for guarantees around the 
 
 * *(none)*
 
-## Use Cases for WeakRefs
+## Notes on WeakRefs
 
-Here are some use cases for WeakRefs.
+Some notes on WeakRefs:
 
-### Caches of Large or Expensive-to-Retrieve Objects
-
-**TBD**
-
-## Patterns to Avoid With WeakRefs
-
-### Scanning for WeakRefs Whose Targets Have Been Reclaimed
-
-Since *cleanup callbacks* (see [`FinalizationRegistry`](#finalizationregistry)) may never be called, it would be understandable for a developer to think:
-
-> Ah! So if I have a bunch of WeakRef instances, I should have some kind of proactive cleanup I perform, scanning through them looking for `deref` returning `undefined`, so that when their targets have been reclaimed, I release those WeakRef instances and any other bookkeeping information I have for them to get that memory back.
-
-**That isn't recommended.** It adds complication and runtime cost to the code. It's likely that an engine that performs garbage collection will, eventually, call your cleanup callbacks, or that you don't need it to (process shutdown, etc.). It's not guaranteed, but the cost of some wasted WeakRef instances is generally not worth the complexity of performing this kind of scan.
+* If your code has just created a WeakRef for a target object, or has gotten a target object from a WeakRef's `deref` method, that target object will not be reclaimed until the end of the current JavaScript [job](https://tc39.es/ecma262/#job) (including any promise reaction jobs that run at the end of a script job). That is, you can only "see" an object get reclaimed between turns of the event loop. This is primarily to avoid making the behavior of any given JavaScript engine's garbage collector apparent in code&nbsp;&mdash; because if it were, people would write code relying on that behavior, which would break when the garbage collector's behavior changed. (Garbage collection is a hard problem; JavaScript engine implementers are constantly refining and improving how it works.)
+* If multiple WeakRefs have the same target, they're consistent with one another. The result of calling `deref` on one of them will match the result of calling `deref` on another of them (in the same job), you won't get the target object from one of them but `undefined` from another.
+* If the target of a WeakRef is also in a [`FinalizationRegistry`](#finalizationregistry), the WeakRef's target is cleared *before* any cleanup callback associated with the registry is called.
+* You cannot change the target of a WeakRef, it will always only ever be the original target object or `undefined` when that target has been reclaimed.
+* A WeakRef may never return `undefined` from `deref`, even if nothing strongly holds the target, because the garbage collector may never decide to reclaim the object.
 
 # `FinalizationRegistry`
 
-A finalization registry provides a means of requesting that a *cleanup callback* get called at some point after an object registered with the registry has been *reclaimed* (garbage collected). (Cleanup callbacks are sometimes called *finalizers*.)
+A finalization registry provides a way to request that a *cleanup callback* get called at some point after an object registered with the registry has been *reclaimed* (garbage collected). (Cleanup callbacks are sometimes called *finalizers*.)
 
 **NOTE:** The form of this API is under review, see [issue #187](https://github.com/tc39/proposal-weakrefs/pull/187).
 
-**NOTE:** Cleanup callbacks should not be used for essential program logic. The [*Cleanup Callback Guarantees*](#cleanup-callback-guarantees) section below goes into more detail about why.
+**NOTE:** Cleanup callbacks should not be used for essential program logic. See [*Notes on Cleanup Callbacks*](#notes-on-cleanup-callbacks) for more.
 
 **FinalizationRegistry Contents**:
 
 * [Overview](#finalizationregistry-overview)
-* [Cleanup Callback Guarantees](#cleanup-callback-guarantees)
+* [Notes on Cleanup Callbacks](#notes-on-cleanup-callbacks)
 * [FinalizationRegistry API](#finalizationregistry-api)
     * [The `FinalizationRegistry` Constructor](#the-finalizationregistry-constructor)
     * [`FinalizationRegistry.prototype.register`](#finalizationregistryprototyperegister)
     * [`FinalizationRegistry.prototype.unregister`](#finalizationregistryprototypeunregister)
     * [`FinalizationRegistry.prototype.cleanupSome`](#finalizationregistryprototypecleanupsome)
-* [Use Cases for Cleanup Callbacks](#use-cases-for-cleanup-callbacks)
-    * [Cleanup in Caches of Large or Expensive-to-Retrieve Objects](#cleanup-in-caches-of-large-or-expensive-to-retrieve-objects)
-    * [Exposing Web Assembly Memory to JavaScript](#exposing-web-assembly-memory-to-javascript)
-    * [Cleaning Up Cross-Process Resources](#cleaning-up-cross-process-resources)
-* [Patterns to Avoid With Cleanup Callbacks](#patterns-to-avoid-with-cleanup-callbacks)
-    * [Using Cleanup Callbacks to Release External Resources](#using-cleanup-callbacks-to-release-external-resources)
 
 ## FinalizationRegistry Overview
 
@@ -190,9 +135,9 @@ registry.register(theObject, "some value");
 
 The registry does not keep a strong reference to the object, as that would defeat the purpose (if the registry held it strongly, the object would never be reclaimed).
 
-If `theObject` is reclaimed, your cleanup callback may be called at some point in the future with the *held value* you provided for it (`"some value"` in the above). The held value can be any value you like, a primitive or an object, even `undefined`. If the held value is an object, the registry keeps a *strong* reference to it (so it can pass it to your cleanup callback later).
+If `theObject` is reclaimed, your cleanup callback may be called at some point in the future with the *held value* you provided for it (`"some value"` in the above). The held value can be any value you like: a primitive or an object, even `undefined`. If the held value is an object, the registry keeps a *strong* reference to it (so it can pass it to your cleanup callback later).
 
-If you might want to unregister an object later, you pass a third value, which is the *unregistration token* you'll use later when calling the registry's `unregister` function to unregister the object.
+If you might want to unregister an object later, you pass a third value, which is the *unregistration token* you'll use later when calling the registry's `unregister` function to unregister the object. The registry only keeps a weak reference to the unregister token.
 
 It's common to use the object itself as the unregister token, which is just fine:
 
@@ -202,7 +147,7 @@ registry.register(theObject, "some value", theObject);
 registry.unregister(theObject);
 ```
 
-But it doesn't have to be the same object, it can be a different one:
+It doesn't have to be the same object, though; it can be a different one:
 
 ```js
 registry.register(theObject, "some value", tokenObject);
@@ -210,9 +155,7 @@ registry.register(theObject, "some value", tokenObject);
 registry.unregister(tokenObject);
 ```
 
-The registry keeps only a weak reference to the unregistration token.
-
-## Cleanup Callback Guarantees
+## Notes on Cleanup Callbacks
 
 Developers shouldn't rely on cleanup callbacks for essential program logic. Cleanup callbacks may be useful for reducing memory usage across the course of a program, but are unlikely to be useful otherwise.
 
@@ -245,13 +188,17 @@ registry = new FinalizationRegistry(cleanupCallback)
 
 * The FinalizationRegistry instance.
 
-**Errors**
-
-* `TypeError` if `cleanupCallback` isn't callable.
-
 **Notes**
 
 * `FinalizationRegistry` is designed to be subclassed, and so can appear in the `extends` of a `class` definition and similar.
+
+**Example**
+
+```js
+const registry = new FinalizationRegistry(heldValue => {
+    // ...use `heldValue`...
+});
+```
 
 ### `FinalizationRegistry.prototype.register`
 
@@ -263,20 +210,27 @@ registry.register(target, heldValue[, unregisterToken])
 
 **Parameters**
 
-* `target` - The target object to register. (Held weakly by the registry.)
-* `heldValue` - The value to pass to the finalizer for this object. (Held strongly by the registry.) This cannot be the `target` object.
-* `unregisterToken` - (Optional) The token to pass to the `unregister` method to unregister the target object. If provided, this must be an object. If not provided, the target cannot be unregistered. (Held weakly by the registry.)
+* `target` - The target object to register.
+* `heldValue` - The value to pass to the finalizer for this object. This cannot be the `target` object.
+* `unregisterToken` - (Optional) The token to pass to the `unregister` method to unregister the target object. If provided (and not `undefined`), this must be an object. If not provided, the target cannot be unregistered.
 
 **Returns**
 
 * *(none)*
 
-**Errors**
+**Examples**
 
-* `TypeError` if any of the following is true:
-    * `target` isn't an object.
-    * `target` and `heldValue` are the same object.
-    * `unregisterToken` is not `undefined` and not an object.
+The following registers the target object referenced by `target`, passing in the held value `"some value"` and passing the target object itself as the unregistration token:
+
+```js
+registry.register(target, "some value", target);
+```
+
+The following registers the target object referenced by `target`, passing in another object as the held value, and not passing in any unregistration token (which means `target` can't be unregistered):
+
+```js
+registry.register(target, {"useful": "info about target"});
+```
 
 ### `FinalizationRegistry.prototype.unregister`
 
@@ -294,63 +248,108 @@ registry.unregister(unregisterToken)
 
 * *(none)*
 
-**Errors**
-
-* `TypeError` if `unregisterToken` isn't an object.
-
 **Notes**
 
 When a target object has been reclaimed and its cleanup callback has been called, it is no longer registered in the registry. There is no need to all `unregister` in your cleanup callback. Only call `unregister` if you haven't received a cleanup callback and no longer need to receive one.
+
+**Example**
+
+This example shows registering a target object using that same object as the unregister token, then later unregistering it via `unregister`:
+
+```js
+class Thingy {
+    #cleanup = label => {
+    //         ^^^^^−−−−− held value
+        console.error(
+            `The \`release\` method was never called for the object with the label "${label}"`
+        );
+    };
+    #registry = new FinalizationRegistry(this.#cleanup);
+
+    /**
+     * Constructs a `Thingy` instance. Be sure to call `release` when you're done with it.
+     *
+     * @param   label       A label for the `Thingy`.
+     */
+    constructor(label) {
+        //                            vvvvv−−−−− held value
+        this.#registry.register(this, label, this);
+        //          target −−−−−^^^^         ^^^^−−−−− unregister token
+    }
+
+    /**
+     * Releases resources held by this `Thingy` instance.
+     */
+    release() {
+        this.#registry.unregister(this);
+        //                        ^^^^−−−−− unregister token
+    }
+}
+```
+
+This example shows registering a target object using a different object as its unregister token:
+
+```js
+class Thingy {
+    #file;
+    #cleanup = file => {
+    //         ^^^^−−−−− held value
+        console.error(
+            `The \`release\` method was never called for the \`Thingy\` for the file "${file.name}"`
+        );
+    };
+    #registry = new FinalizationRegistry(this.#cleanup);
+
+    /**
+     * Constructs a `Thingy` instance for the given file. Be sure to call `release` when you're done with it.
+     *
+     * @param   filename    The name of the file.
+     */
+    constructor(filename) {
+        this.#file = File.open(filename);
+        //                            vvvvv−−−−− held value
+        this.#registry.register(this, label, this.#file);
+        //          target −−−−−^^^^         ^^^^^^^^^^−−−−− unregister token
+    }
+
+    /**
+     * Releases resources held by this `Thingy` instance.
+     */
+    release() {
+        if (this.#file) {
+            this.#registry.unregister(this.#file);
+            //                        ^^^^^^^^^^−−−−− unregister token
+            File.close(this.#file);
+            this.#file = null;
+        }
+    }
+}
+```
 
 ### `FinalizationRegistry.prototype.cleanupSome`
 
 Triggers callbacks for an implementation-chosen number of objects in the registry that have been reclaimed but whose callbacks have not yet been called:
 
 ```js
-registry.cleanupSome([callback])
+registry.cleanupSome(heldValue => {
+    // ...
+});
 ```
 
-**NOTE:** Normally, you don't call this function. Leave it to the JavaScript engine's garbage collector to do the cleanup as appropriate. This function primarily exists to support long-running jobs in Wasm applications. Use in JavaScript code is likely to be unnecessary.
+**NOTE:** Normally, you don't call this function. Leave it to the JavaScript engine's garbage collector to do the cleanup as appropriate. This function primarily exists to support long-running code which doesn't yield to the event loop, which is more likely to come up in WebAssembly than ordinary JavaScript code. Also note that the callback may not be called (for instance, if there are no registry entries whose targets have been reclaimed).
 
 **Parameters**
 
-* `callback` - (Optional) If given, the registry uses the given callback instead of the one it was created with.
+* `callback` - (Optional) If given, the registry uses the given callback instead of the one it was created with. It must be callable.
 
 **Returns**
 
 * *(none)*
 
-**Errors**
-
-* `TypeError` if `callback` isn't `undefined` and isn't callable.
-
 **Notes**
 
 * The number of entries for reclaimed objects that are cleaned up from the registry (calling the cleanup callbacks) is implementation-defined. An implementation might remove just one eligible entry, or all eligible entries, or somewhere in between.
 
-## Use Cases for Cleanup Callbacks
-
-Here are some use cases for cleanup callbacks.
-
-### Cleanup in Caches of Large or Expensive-to-Retrieve Objects
-
-**TBD**: Point to the WeakRef use case and explain about cleaning up.
-
-### Exposing Web Assembly Memory to JavaScript
-
-**TBD**: Mostly copying the README.md.
-
-### Cleaning Up Cross-Process Resources
-
-**TBD**: Mostly copying the README.md about proxies for worker objects, but slightly more generalized with that being an example.
-
-## Patterns to Avoid With Cleanup Callbacks
-
-Here are some things to avoid with cleanup callbacks.
-
-### Using Cleanup Callbacks to Release External Resources
-
-Don't rely on cleanup callbacks to release external resources. For example, consider the `FileStream` API in [the examples](examples.md#locating-and-responding-to-resource-leaks). The API has an explicit `close` method that developers are expected to call in the normal course of using the API. It does use cleanup callbacks, but it does so primarily to aid developers in using the API correctly by notifying them that they've failed to call `close`. While it could *also* release the file handles or other OS resources via the cleanup callback, that's not the cleanup callback's primary purpose. Its primary purpose is to help developers use the API correctly.
 
 <!-- for scrolling to links near the end -->
 <br>
