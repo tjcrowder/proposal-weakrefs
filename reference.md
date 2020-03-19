@@ -97,7 +97,7 @@ Some notes on WeakRefs:
 * If multiple WeakRefs have the same target, they're consistent with one another. The result of calling `deref` on one of them will match the result of calling `deref` on another of them (in the same job), you won't get the target object from one of them but `undefined` from another.
 * If the target of a WeakRef is also in a [`FinalizationRegistry`](#finalizationregistry), the WeakRef's target is cleared *before* any cleanup callback associated with the registry is called.
 * You cannot change the target of a WeakRef, it will always only ever be the original target object or `undefined` when that target has been reclaimed.
-* A WeakRef may never return `undefined` from `deref`, even if nothing strongly holds the target, because the garbage collector may never decide to reclaim the object.
+* A WeakRef might never return `undefined` from `deref`, even if nothing strongly holds the target, because the garbage collector may never decide to reclaim the object.
 
 # `FinalizationRegistry`
 
